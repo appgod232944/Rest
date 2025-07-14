@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f97316">
+    <meta name="description" content="اپلیکیشن مدیریت و فروش منوی رستوران">
+    <title>رستوران من - مدیریت منو و فروش</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --light: #f8fafc;
+            --dark: #1e293b;
+            --gray: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f1f5f9;
+            color: var(--dark);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        /* Header styles */
+        header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo img {
+            height: 40px;
+        }
+        
+        .logo h1 {
+            font-size: 1.4rem;
+            color: var(--primary);
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tab-btn {
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: transparent;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* Main sections */
+        .section {
+            display: none;
+            padding: 20px 0;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        .section-title {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+            color: var(--dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* Menu grid */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .menu-item {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        .menu-item-image {
+            height: 180px;
+            width: 100%;
+            background-color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .menu-item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .menu-item-details {
+            padding: 15px;
+        }
+        
+        .menu-item-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .menu-item-description {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            min-height: 40px;
+        }
+        
+        .menu-item-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .menu-item-price {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .btn {
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.85rem;
+        }
+        
+        /* Admin panel */
+        .admin-form {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        /* Orders */
+        .orders-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .order-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .order-id {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .order-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: #fef9c3;
+            color: #ca8a04;
+        }
+        
+        .status-completed {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .order-items {
+            margin-top: 10px;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            font-weight: 700;
+        }
+        
+        /* Footer */
+        .app-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px 0;
+        }
+        
+        .footer-tabs {
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .footer-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: var(--gray);
+            text-decoration: none;
+        }
+        
+        .footer-tab.active {
+            color: var(--primary);
+        }
+        
+        .footer-tab i {
+            font-size: 1.2rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .logo h1 {
+                font-size: 1.2rem;
+            }
+            
+            .menu-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tab-btn {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* Utility classes */
+        .hidden {
+            display: none;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-20 {
+            margin-top: 20px;
+        }
+        
+        .p-20 {
+            padding: 20px;
+        }
+        
+        /* Install button */
+        .install-btn {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- Install button -->
+    <button id="installBtn" class="install-btn hidden">
+        <i>📲</i>
+    </button>
+    
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-container">
+                <div class="logo">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2Y5NzMxNiIvPjx0ZXh0IHg9IjEyOCIgeT0iMTM0IiBmb250LXNpemU9IjQ4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZmZmZmZmIiBmb250LWZhbWlseT0iQXJpYWwiPu2DgDwvdGV4dD48L3N2Zz4=" alt="لوگو">
+                    <h1>رستوران من</h1>
+                </div>
+                <div class="nav-tabs">
+                    <button class="tab-btn active" data-tab="menu">منو</button>
+                    <button class="tab-btn" data-tab="orders">سفارشات</button>
+                    <button class="tab-btn" data-tab="admin">مدیریت</button>
+                    <button class="tab-btn" data-tab="stats">آمار</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main content -->
+    <main class="container">
+        <!-- Menu Section -->
+        <section id="menuSection" class="section active">
+            <h2 class="section-title">منوی رستوران</h2>
+            <div class="menu-grid" id="menuContainer">
+                <!-- Menu items will be loaded here -->
+            </div>
+        </section>
+        
+        <!-- Orders Section -->
+        <section id="ordersSection" class="section">
+            <h2 class="section-title">سفارشات اخیر</h2>
+            <div class="orders-list" id="ordersContainer">
+                <!-- Orders will be loaded here -->
+            </div>
+        </section>
+        
+        <!-- Admin Section -->
+        <section id="adminSection" class="section">
+            <h2 class="section-title">مدیریت منو</h2>
+            <div class="admin-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productName">نام محصول</label>
+                        <input type="text" id="productName" class="form-control" placeholder="مثلاً: قهوه اسپرسو">
+                    </div>
+                    <div class="form-group">
+                        <label for="productPrice">قیمت (تومان)</label>
+                        <input type="number" id="productPrice" class="form-control" placeholder="مثلاً: 35000">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="productDescription">توضیحات</label>
+                    <textarea id="productDescription" class="form-control" rows="2" placeholder="توضیحات محصول"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productCategory">دسته‌بندی</label>
+                        <select id="productCategory" class="form-control">
+                            <option value="نوشیدنی">نوشیدنی</option>
+                            <option value="غذای اصلی">غذای اصلی</option>
+                            <option value="پیش غذا">پیش غذا</option>
+                            <option value="دسر">دسر</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="productImage">تصویر محصول (URL)</label>
+                        <input type="text" id="productImage" class="form-control" placeholder="لینک تصویر">
+                    </div>
+                </div>
+                <button id="addProductBtn" class="btn btn-primary">افزودن محصول</button>
+            </div>
+            
+            <h3 class="section-title">لیست محصولات</h3>
+            <div id="adminProductsContainer" class="menu-grid">
+                <!-- Admin products will be loaded here -->
+            </div>
+        </section>
+        
+        <!-- Statistics Section -->
+        <section id="statsSection" class="section">
+            <h2 class="section-title">آمار و گزارشات</h2>
+            <div class="p-20 text-center">
+                <p>در حال توسعه...</p>
+            </div>
+        </section>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-tabs">
+                <a href="#" class="footer-tab active" data-tab="menu">
+                    <i>🍔</i>
+                    <span>منو</span>
+                </a>
+                <a href="#" class="footer-tab" data-tab="orders">
+                    <i>📋</i>
+                    <span>سفارشات</span>
+                </a>
+                <a href="#" class="footer-tab" data-tab="admin">
+                    <i>⚙️</i>
+                    <span>مدیریت</span>
+                </a>
+                <a href="#" class="footer-tab" data-tab="stats">
+                    <i>📊</i>
+                    <span>آمار</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        // Supabase setup
+        const SUPABASE_URL = 'https://your-project.supabase.co';
+        const SUPABASE_KEY = 'your-public-key';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // DOM elements
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const footerTabs = document.querySelectorAll('.footer-tab');
+        const sections = document.querySelectorAll('.section');
+        const menuContainer = document.getElementById('menuContainer');
+        const ordersContainer = document.getElementById('ordersContainer');
+        const adminProductsContainer = document.getElementById('adminProductsContainer');
+        const installBtn = document.getElementById('installBtn');
+        let deferredPrompt;
+        
+        // Tab switching
+        function switchTab(tabName) {
+            // Update active tab button
+            tabBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+            
+            // Update active footer tab
+            footerTabs.forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+            
+            // Show active section
+            sections.forEach(section => {
+                section.classList.toggle('active', section.id === `${tabName}Section`);
+            });
+        }
+        
+        // Event listeners for tabs
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchTab(btn.dataset.tab);
+            });
+        });
+        
+        footerTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchTab(tab.dataset.tab);
+            });
+        });
+        
+        // Sample menu data
+        const sampleProducts = [
+            {
+                id: 1,
+                name: "قهوه اسپرسو",
+                description: "قهوه غلیظ و معطر با طعمی عالی",
+                price: 35000,
+                image: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/2b48a031-0902-4996-9751-3429284a09b2.png",
+                category: "نوشیدنی",
+                is_available: true
+            },
+            {
+                id: 2,
+                name: "پیتزا پپرونی",
+                description: "پپرونی تند با پنیر اضافه",
+                price: 120000,
+                image: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/29b484f3-cbdb-4269-a3d4-337b10ef90db.png",
+                category: "غذای اصلی",
+                is_available: true
+            },
+            {
+                id: 3,
+                name: "سالاد سزار",
+                description: "کاهو، سس سزار، کروتون و پارمزان",
+                price: 65000,
+                image: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/d8f8b642-9635-4acc-95ba-5542108ebad5.png",
+                category: "پیش غذا",
+                is_available: true
+            },
+            {
+                id: 4,
+                name: "برگر کلاسیک",
+                description: "گوشت ۲۰۰ گرمی با سس مخصوص",
+                price: 85000,
+                image: "https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/b345e1ba-3183-402f-8b6e-a7bd0ba26268.png",
+                category: "فست فود",
+                is_available: true
+            }
+        ];
+        
+        // Sample orders data
+        const sampleOrders = [
+            {
+                id: "ORD-001",
+                date: "۱۴۰۲/۰۵/۱۵ - ۱۴:۳۰",
+                customer: "محمد احمدی",
+                table: "۵",
+                status: "تکمیل شده",
+                total: 195000,
+                items: [
+                    { name: "قهوه اسپرسو", price: 35000, quantity: 2 },
+                    { name: "پیتزا پپرونی", price: 120000, quantity: 1 }
+                ]
+            },
+            {
+                id: "ORD-002",
+                date: "۱۴۰۲/۰۵/۱۵ - ۱۵:۱۵",
+                customer: "فاطمه محمدی",
+                table: "۱۲",
+                status: "در حال آماده‌سازی",
+                total: 75000,
+                items: [
+                    { name: "سالاد سزار", price: 65000, quantity: 1 },
+                    { name: "آب معدنی", price: 10000, quantity: 1 }
+                ]
+            }
+        ];
+        
+        // Render menu items
+        function renderMenu(products) {
+            menuContainer.innerHTML = '';
+            products.forEach(product => {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'menu-item';
+                menuItem.innerHTML = `
+                    <div class="menu-item-image">
+                        <img src="${product.image}" alt="${product.name}">
+                    </div>
+                    <div class="menu-item-details">
+                        <h3 class="menu-item-title">${product.name}</h3>
+                        <p class="menu-item-description">${product.description}</p>
+                        <div class="menu-item-footer">
+                            <span class="menu-item-price">${product.price.toLocaleString()} تومان</span>
+                            <button class="btn btn-primary btn-sm" data-id="${product.id}">
+                                افزودن به سبد
+                            </button>
+                        </div>
+                    </div>
+                `;
+                menuContainer.appendChild(menuItem);
+            });
+        }
+        
+        // Render orders
+        function renderOrders(orders) {
+            ordersContainer.innerHTML = '';
+            orders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'order-card';
+                orderCard.innerHTML = `
+                    <div class="order-header">
+                        <div>
+                            <span class="order-id">${order.id}</span>
+                            <span>${order.date}</span>
+                        </div>
+                        <span class="order-status status-${order.status === 'تکمیل شده' ? 'completed' : 'pending'}">
+                            ${order.status}
+                        </span>
+                    </div>
+                    <div class="order-details">
+                        <div>
+                            <strong>مشتری:</strong> ${order.customer}
+                        </div>
+                        <div>
+                            <strong>میز:</strong> ${order.table}
+                        </div>
+                    </div>
+                    <div class="order-items">
+                        ${order.items.map(item => `
+                            <div class="order-item">
+                                <span>${item.quantity} x ${item.name}</span>
+                                <span>${(item.price * item.quantity).toLocaleString()} تومان</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="order-total">
+                        <span>جمع کل:</span>
+                        <span>${order.total.toLocaleString()} تومان</span>
+                    </div>
+                `;
+                ordersContainer.appendChild(orderCard);
+            });
+        }
+        
+        // Render admin products
+        function renderAdminProducts(products) {
+            adminProductsContainer.innerHTML = '';
+            products.forEach(product => {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'menu-item';
+                menuItem.innerHTML = `
+                    <div class="menu-item-image">
+                        <img src="${product.image}" alt="${product.name}">
+                    </div>
+                    <div class="menu-item-details">
+                        <h3 class="menu-item-title">${product.name}</h3>
+                        <p class="menu-item-description">${product.description}</p>
+                        <div class="menu-item-footer">
+                            <span class="menu-item-price">${product.price.toLocaleString()} تومان</span>
+                            <div>
+                                <button class="btn btn-sm" style="background:#e2e8f0">ویرایش</button>
+                                <button class="btn btn-sm" style="background:#fee2e2; color:#ef4444">حذف</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                adminProductsContainer.appendChild(menuItem);
+            });
+        }
+        
+        // Add new product
+        document.getElementById('addProductBtn').addEventListener('click', () => {
+            const name = document.getElementById('productName').value;
+            const price = parseInt(document.getElementById('productPrice').value);
+            const description = document.getElementById('productDescription').value;
+            const category = document.getElementById('productCategory').value;
+            const image = document.getElementById('productImage').value || 'https://via.placeholder.com/300x200?text=بدون+تصویر';
+            
+            if (!name || !price) {
+                alert('لطفاً نام و قیمت محصول را وارد کنید');
+                return;
+            }
+            
+            const newProduct = {
+                id: sampleProducts.length + 1,
+                name,
+                description,
+                price,
+                image,
+                category,
+                is_available: true
+            };
+            
+            sampleProducts.push(newProduct);
+            renderMenu(sampleProducts);
+            renderAdminProducts(sampleProducts);
+            
+            // Reset form
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productDescription').value = '';
+            document.getElementById('productImage').value = '';
+            
+            alert('محصول جدید با موفقیت اضافه شد!');
+        });
+        
+        // PWA Installation
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.classList.remove('hidden');
+        });
+        
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                installBtn.classList.add('hidden');
+            }
+            
+            deferredPrompt = null;
+        });
+        
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+        
+        // Initial render
+        renderMenu(sampleProducts);
+        renderOrders(sampleOrders);
+        renderAdminProducts(sampleProducts);
+    </script>
+</body>
+</html>
